@@ -12,6 +12,7 @@
     "chakra-typegen": "npx @chakra-ui/cli typegen ./src/components/ui/theme.ts"
   },
   "dependencies": {
+    "@one-matrix/intent-sdk": "git@github.com:OneMatrixL1/intent-sdk.git",
     "@chakra-ui/react": "^3.13.0",
     "@emotion/react": "^11.14.0",
     "@ethersproject/abi-v6": "npm:@ethersproject/abi@^5.8.0",

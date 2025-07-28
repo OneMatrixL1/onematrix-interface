@@ -24,8 +24,10 @@ import {
   toBytes,
   toHex,
   zeroAddress,
+  parseAbi,
 } from "viem"
 import { useAccount, useWalletClient } from "wagmi"
+import { IntentSDK } from "@one-matrix/intent-sdk"
 
 import { getRelayer } from "./utils"
 
@@ -54,89 +56,27 @@ const TransferBox = () => {
     const recipientAddress = receiveAddress as Address
     const tokenAddress = token.address
 
-    const publicClient = createPublicClient({
-      chain: fromChain,
-      transport: http(),
-    })
+    const chainId: number = walletClient.chain.id
 
-    const nonce = await publicClient.readContract({
-      abi: ISCAbi,
-      address: iscAddress,
-      args: [address],
-      functionName: "getNonce",
-    })
+    const sdk = new IntentSDK(chainId, iscAddress, handlerAddress)
 
-    // Create the agreement
-    const agreement = {
-      nonce,
-      resolverData: [pad(recipientAddress, { size: 32 }), pad(address, { size: 32 }), pad(tokenAddress, { size: 32 })],
-      sections: [
-        {
-          app: tokenAddress, // ERC20 intent or adapter
-          handler: handlerAddress, // handler erc20 - 18 decimals
-          intents: [
-            {
-              key: [stringToHex("fungible: balance", { size: 32 })],
-              opcode: stringToHex("-", { size: 32 }),
-              owner: address,
-              signer: address,
-              value: pad(toHex(amount), { size: 32 }),
-            },
-            {
-              key: [stringToHex("fungible: balance", { size: 32 })],
-              opcode: stringToHex("+", { size: 32 }),
-              owner: recipientAddress,
-              signer: zeroAddress,
-              value: pad(toHex(amount), { size: 32 }),
-            },
-          ],
-        },
-      ],
-      signatures: [] as Address[],
-    }
-
-    const formattedAgreement = await publicClient.readContract({
-      abi: ISCAbi,
-      address: iscAddress,
-      args: [agreement, true],
-      functionName: "format",
-    })
-
-    const signature = await walletClient.request({
-      method: "personal_sign",
-      params: [formattedAgreement as Address, address],
-    })
-
-    agreement.signatures[0] = signature
-
-    const agreementData = new AbiCoderV6().encode(
-      [
-        "tuple(uint256 nonce, tuple(address handler, address app, tuple(address owner, bytes32[] key, bytes32 opcode, bytes32 value, address signer)[] intents)[] sections, bytes[] signatures, bytes32[] resolverData)",
-      ],
-      [
-        [
-          agreement.nonce,
-          agreement.sections.map((section) => [
-            section.handler,
-            section.app,
-            section.intents.map((intent) => [intent.owner, intent.key, intent.opcode, intent.value, intent.signer]),
-          ]),
-          agreement.signatures,
-          agreement.resolverData,
-        ],
-      ],
-    ) as Address
-
-    const encodedFuncData = encodeFunctionData({
+    const encodedFnData = encodeFunctionData({
       abi: ERC20Abi,
       args: [address, recipientAddress, amount],
       functionName: "transferFrom",
     })
 
-    const data = encodePacked(
-      ["bytes", "bytes", "uint256", "bytes32"],
-      [encodedFuncData, agreementData, BigInt(size(agreementData)), keccak256(toBytes("intent.calldata.suffix"))],
-    )
+    // build agreement
+    const agreement = await sdk.buildAgreementFromFunctionData(tokenAddress, encodedFnData, address, chainId)
+
+    // Sign the agreement using ethers wallet
+    const signatures = await sdk.signAgreementWithViem(agreement, walletClient, address)
+
+    // Apply to transaction
+    const txData = sdk.applyAgreementToTransaction(agreement, signatures, {
+      to: tokenAddress,
+      data: encodedFnData,
+    })
 
     const { relayerAccount, relayerAddress } = getRelayer()
 
@@ -147,9 +87,8 @@ const TransferBox = () => {
     })
 
     const txHash = await relayerClient.sendTransaction({
-      data,
       from: relayerAddress,
-      to: tokenAddress,
+      ...txData,
     })
 
     return txHash
