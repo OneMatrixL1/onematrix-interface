@@ -6,7 +6,6 @@ import {
   Dialog,
   Flex,
   Group,
-  HStack,
   Input,
   Portal,
   Stack,
@@ -101,43 +100,37 @@ const WebRTC = () => {
     }
   }
 
-  const scanQR = async (role: Role, step: Step) => {
-    setRole(role)
-    setStep(step)
+  const scanQR = async () => {
+    const scanner = new QrScanner(
+      videoRef.current!,
+      async (result) => {
+        scanner.stop()
+        qrScannerRef.current = null
 
-    setTimeout(() => {
-      if (!videoRef.current) return
+        if (role === Role.OFFERER) {
+          if (!pcRef.current) return
+          const answer = JSON.parse(result.data)
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
+          setStatus("Connected (Offer side)")
+          toaster.create({ title: "Connected" })
+          dialog.setOpen(false)
+        }
+        if (role === Role.ANSWERER) {
+          setupConnection()
+          if (!pcRef.current) return
+          const offer = JSON.parse(result.data)
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
+          const answer = await pcRef.current.createAnswer()
+          await pcRef.current.setLocalDescription(answer)
+          setQrValue(JSON.stringify(pcRef.current.localDescription))
+          setStep(Step.QRCODE)
+        }
+      },
+      { returnDetailedScanResult: true },
+    )
 
-      // const scanner = new QrScanner(
-      //   videoRef.current,
-      //   async (result) => {
-      //     if (!videoRef.current || !pcRef.current) return
-      //     scanner.stop()
-      //     qrScannerRef.current = null
-
-      //     console.log("result", result.data)
-      //     const data = JSON.parse(result.data)
-      //     console.log("data", data)
-
-      //     if (type === "offer") {
-      //       // setRole(Role.ANSWERER)
-      //       setupConnection()
-      //       await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
-      //       const answer = await pcRef.current.createAnswer()
-      //       await pcRef.current.setLocalDescription(answer)
-      //       setQrValue(JSON.stringify(pcRef.current.localDescription))
-      //     }
-      //     if (type === "answer") {
-      //       await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
-      //       setStatus("Connected (Offer side)")
-      //     }
-      //   },
-      //   { returnDetailedScanResult: true },
-      // )
-
-      // qrScannerRef.current = scanner
-      // scanner.start()
-    }, 100)
+    qrScannerRef.current = scanner
+    scanner.start()
   }
 
   const sendMessage = () => {
@@ -169,6 +162,7 @@ const WebRTC = () => {
             setRole(Role.ANSWERER)
             setStep(Step.SCANNER)
             dialog.setOpen(true)
+            setTimeout(() => scanQR(), 100)
           }}
         >
           Scan Offer (Peer B)
@@ -237,6 +231,7 @@ const WebRTC = () => {
                         onClick={() => {
                           setQrValue("")
                           setStep(Step.SCANNER)
+                          setTimeout(() => scanQR(), 100)
                         }}
                       >
                         Scan Answer
