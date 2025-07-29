@@ -44,6 +44,7 @@ const MenuItems = () => {
       <MenuItem {...privateRoute.transfer} />
       <MenuItem {...privateRoute.bridge} />
       <MenuItem {...privateRoute.multiSign} />
+      <MenuItem {...privateRoute.webRTC} />
       <MenuItem
         linkProps={{ target: "_blank" }}
         name={
