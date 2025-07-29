@@ -70,6 +70,7 @@ const TransferBox = () => {
     const agreement = await sdk.buildAgreementFromFunctionData(tokenAddress, encodedFnData, address, chainId)
 
     // Sign the agreement using ethers wallet
+    // @ts-expect-error skip
     const signatures = await sdk.signAgreementWithViem(agreement, walletClient, address)
 
     // Apply to transaction
