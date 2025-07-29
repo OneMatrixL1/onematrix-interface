@@ -1,14 +1,44 @@
-import { Button, Container, Flex, HStack, Text } from "@chakra-ui/react"
+import {
+  Box,
+  Button,
+  CloseButton,
+  Container,
+  Dialog,
+  Flex,
+  Group,
+  HStack,
+  Input,
+  Portal,
+  Stack,
+  Text,
+  useDialog,
+} from "@chakra-ui/react"
+import { toaster } from "components/ui/toaster"
 import QrScanner from "qr-scanner"
-import { QRCodeCanvas as QRCode } from "qrcode.react"
+import { QRCodeSVG as QRCode } from "qrcode.react"
 import React, { useEffect, useRef, useState } from "react"
 
+enum Role {
+  ANSWERER = "ANSWERER",
+  OFFERER = "OFFERER",
+}
+
+enum Step {
+  QRCODE = "QRCODE",
+  SCANNER = "SCANNER",
+}
+
 const WebRTC = () => {
-  const [role, setRole] = useState<null | string>(null)
+  const [role, setRole] = useState<null | Role>(null)
+  const [step, setStep] = useState<null | Step>(null)
+
   const [qrValue, setQrValue] = useState("")
+
   const [status, setStatus] = useState("Not connected")
   const [message, setMessage] = useState("")
   const [chat, setChat] = useState<string[]>([])
+
+  const dialog = useDialog()
   const videoRef = useRef<HTMLVideoElement>(null)
   const qrScannerRef = useRef<QrScanner>(null)
   const pcRef = useRef<RTCPeerConnection>(null)
@@ -19,27 +49,47 @@ const WebRTC = () => {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
 
-    pc.onicecandidate = (e) => {
-      if (!e.candidate) {
+    pc.onicecandidate = (event) => {
+      if (!event.candidate) {
         setQrValue(JSON.stringify(pc.localDescription))
       }
     }
 
-    pc.ondatachannel = (e) => {
-      const dc = e.channel
+    pc.oniceconnectionstatechange = () => {
+      handleDisconnect(pc.iceConnectionState)
+    }
+
+    pc.onconnectionstatechange = () => {
+      handleDisconnect(pc.connectionState)
+    }
+
+    const handleDisconnect = (state: RTCIceConnectionState | RTCPeerConnectionState) => {
+      if (state === "disconnected" || state === "failed" || state === "closed") {
+        setStatus("Not connected")
+        toaster.create({ title: "Disconnected" })
+      }
+    }
+
+    pc.ondatachannel = (event) => {
+      const dc = event.channel
       dcRef.current = dc
       dc.onmessage = (event) => {
         setChat((c) => [...c, `Peer: ${event.data}`])
       }
       setStatus("Connected (Answer side)")
+      toaster.create({ title: "Connected" })
+      dialog.setOpen(false)
     }
 
     pcRef.current = pc
   }
 
   const createOffer = async () => {
-    setRole("offerer")
+    setRole(Role.OFFERER)
+    setStep(Step.QRCODE)
+
     setupConnection()
+    dialog.setOpen(true)
 
     if (pcRef.current) {
       const dc = pcRef.current.createDataChannel("chat")
@@ -51,39 +101,43 @@ const WebRTC = () => {
     }
   }
 
-  const scanQR = async (type: string) => {
-    if (!videoRef.current) return
+  const scanQR = async (role: Role, step: Step) => {
+    setRole(role)
+    setStep(step)
 
-    const scanner = new QrScanner(
-      videoRef.current,
-      async (result) => {
-        if (!videoRef.current || !pcRef.current) return
-        scanner.stop()
-        qrScannerRef.current = null
-        videoRef.current.style.display = "none"
+    setTimeout(() => {
+      if (!videoRef.current) return
 
-        console.log("result", result.data)
-        const data = JSON.parse(result.data)
-        console.log("data", data)
+      // const scanner = new QrScanner(
+      //   videoRef.current,
+      //   async (result) => {
+      //     if (!videoRef.current || !pcRef.current) return
+      //     scanner.stop()
+      //     qrScannerRef.current = null
 
-        if (type === "offer") {
-          setRole("answerer")
-          setupConnection()
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
-          const answer = await pcRef.current.createAnswer()
-          await pcRef.current.setLocalDescription(answer)
-          setQrValue(JSON.stringify(pcRef.current.localDescription))
-        } else if (type === "answer") {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
-          setStatus("Connected (Offer side)")
-        }
-      },
-      { returnDetailedScanResult: true },
-    )
+      //     console.log("result", result.data)
+      //     const data = JSON.parse(result.data)
+      //     console.log("data", data)
 
-    qrScannerRef.current = scanner
-    videoRef.current.style.display = "block"
-    scanner.start()
+      //     if (type === "offer") {
+      //       // setRole(Role.ANSWERER)
+      //       setupConnection()
+      //       await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
+      //       const answer = await pcRef.current.createAnswer()
+      //       await pcRef.current.setLocalDescription(answer)
+      //       setQrValue(JSON.stringify(pcRef.current.localDescription))
+      //     }
+      //     if (type === "answer") {
+      //       await pcRef.current.setRemoteDescription(new RTCSessionDescription(data))
+      //       setStatus("Connected (Offer side)")
+      //     }
+      //   },
+      //   { returnDetailedScanResult: true },
+      // )
+
+      // qrScannerRef.current = scanner
+      // scanner.start()
+    }, 100)
   }
 
   const sendMessage = () => {
@@ -102,34 +156,36 @@ const WebRTC = () => {
 
   return (
     <Container>
-      <Text fontWeight="bold">WebRTC Peer-to-Peer via QR Code</Text>
+      <Text fontWeight="bold">WebRTC Peer-to-Peer</Text>
+      <Text>Status: {status}</Text>
 
-      {!role && (
-        <Flex gap={2}>
-          <Button onClick={createOffer}>Start Offer (Peer A)</Button>
-          <Button onClick={() => scanQR("offer")}>Scan Offer (Peer B)</Button>
-        </Flex>
-      )}
-
-      {qrValue && (
-        <div style={{ marginTop: 20 }}>
-          <h3>QR Code to Share</h3>
-          <QRCode size={256} value={qrValue} />
-        </div>
-      )}
-
-      {role === "offerer" && !pcRef.current?.remoteDescription && (
-        <Button onClick={() => scanQR("answer")}>Scan Answer</Button>
-      )}
-
-      <p>
-        <strong>Status:</strong> {status}
-      </p>
+      <Flex gap={2}>
+        <Button colorPalette="purple" onClick={createOffer}>
+          Start Offer (Peer A)
+        </Button>
+        <Button
+          colorPalette="purple"
+          onClick={() => {
+            setRole(Role.ANSWERER)
+            setStep(Step.SCANNER)
+            dialog.setOpen(true)
+          }}
+        >
+          Scan Offer (Peer B)
+        </Button>
+      </Flex>
 
       {status.startsWith("Connected") && (
         <>
-          <input onChange={(e) => setMessage(e.target.value)} placeholder="Enter message..." value={message} />
-          <Button onClick={sendMessage}>Send</Button>
+          <Group attached w="full">
+            <Input
+              flex={1}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter message..."
+              value={message}
+            />
+            <Button onClick={sendMessage}>Send</Button>
+          </Group>
 
           <div style={{ marginTop: 20 }}>
             <h4>Chat Log</h4>
@@ -142,7 +198,116 @@ const WebRTC = () => {
         </>
       )}
 
-      <video muted playsInline ref={videoRef} style={{ display: "none", marginTop: 20, width: 300 }} />
+      <Dialog.Root
+        closeOnEscape={false}
+        closeOnInteractOutside={false}
+        open={dialog.open}
+        scrollBehavior="inside"
+        size="md"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Connect WebRTC</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                {step === Step.QRCODE && (
+                  <Stack>
+                    <QRCode height="auto" value={qrValue} width="100%" />
+
+                    <Group attached w="full">
+                      <Input disabled flex={1} value={qrValue} />
+                      <Button
+                        bg="bg.subtle"
+                        onClick={() => {
+                          navigator.clipboard.writeText(qrValue).then(() => {
+                            toaster.create({ title: "Copied" })
+                          })
+                        }}
+                        variant="outline"
+                      >
+                        Copy
+                      </Button>
+                    </Group>
+
+                    {role === Role.OFFERER ? (
+                      <Button
+                        onClick={() => {
+                          setQrValue("")
+                          setStep(Step.SCANNER)
+                        }}
+                      >
+                        Scan Answer
+                      </Button>
+                    ) : (
+                      <Box h={10} />
+                    )}
+                  </Stack>
+                )}
+
+                {step === Step.SCANNER && (
+                  <Stack>
+                    <Box borderWidth={1} overflow="hidden" p={2}>
+                      <video muted playsInline ref={videoRef} style={{ minHeight: 464 - 18 }} />
+                    </Box>
+
+                    <Group attached w="full">
+                      <Input
+                        flex={1}
+                        onChange={(e) => setQrValue(e.target.value)}
+                        placeholder="Enter..."
+                        value={qrValue}
+                      />
+                      <Button bg="bg.subtle" variant="outline">
+                        Parse
+                      </Button>
+                    </Group>
+
+                    <Button
+                      onClick={async () => {
+                        if (role === Role.OFFERER) {
+                          if (!pcRef.current) return
+                          const answer = JSON.parse(qrValue)
+                          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
+                          setStatus("Connected (Offer side)")
+                          toaster.create({ title: "Connected" })
+                          dialog.setOpen(false)
+                        }
+                        if (role === Role.ANSWERER) {
+                          setupConnection()
+                          if (!pcRef.current) return
+                          const offer = JSON.parse(qrValue)
+                          await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
+                          const answer = await pcRef.current.createAnswer()
+                          await pcRef.current.setLocalDescription(answer)
+                          setQrValue(JSON.stringify(pcRef.current.localDescription))
+                          setStep(Step.QRCODE)
+                        }
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  </Stack>
+                )}
+              </Dialog.Body>
+
+              <Dialog.CloseTrigger>
+                <CloseButton
+                  onClick={() => {
+                    setRole(null)
+                    setStep(null)
+                    setQrValue("")
+                    dialog.setOpen(false)
+                  }}
+                  size="sm"
+                />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </Container>
   )
 }
