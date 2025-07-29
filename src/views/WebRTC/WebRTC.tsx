@@ -142,10 +142,10 @@ const WebRTC = () => {
   }
 
   useEffect(() => {
-    return () => {
+    if (!dialog.open || step !== Step.SCANNER) {
       qrScannerRef.current?.stop()
     }
-  }, [])
+  }, [dialog.open, step])
 
   return (
     <Container>
