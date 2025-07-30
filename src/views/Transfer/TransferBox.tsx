@@ -1,33 +1,17 @@
 import { Button, Center, Checkbox, Flex, Input, Link, SimpleGrid, Stack, Text, useCheckbox } from "@chakra-ui/react"
-import { AbiCoder as AbiCoderV6 } from "@ethersproject/abi-v6"
+import { IntentSDK } from "@one-matrix/intent-sdk"
 import { useMutation } from "@tanstack/react-query"
 import { BalanceDisplay, ChainSelectPopover, NumericInput, TokenSelectDialog } from "components/common"
 import { toaster } from "components/ui/toaster"
 import { queryClient } from "config/queryClient"
-import { ERC20Abi, ISCAbi } from "contracts/abis"
+import { ERC20Abi } from "contracts/abis"
 import { useState } from "react"
 import { MdArrowDownward, MdClearAll } from "react-icons/md"
 import { RxOpenInNewWindow } from "react-icons/rx"
 import { useTransferStore } from "store/transferStore"
 import { shortenAddress } from "utils/common"
-import {
-  createPublicClient,
-  createWalletClient,
-  encodeFunctionData,
-  encodePacked,
-  http,
-  keccak256,
-  pad,
-  parseEther,
-  size,
-  stringToHex,
-  toBytes,
-  toHex,
-  zeroAddress,
-  parseAbi,
-} from "viem"
+import { createWalletClient, encodeFunctionData, http, parseEther } from "viem"
 import { useAccount, useWalletClient } from "wagmi"
-import { IntentSDK } from "@one-matrix/intent-sdk"
 
 import { getRelayer } from "./utils"
 
@@ -58,7 +42,7 @@ const TransferBox = () => {
 
     const chainId: number = token.chainId
 
-    const sdk = new IntentSDK(chainId, iscAddress, handlerAddress)
+    const sdk = new IntentSDK(chainId, iscAddress)
 
     const encodedFnData = encodeFunctionData({
       abi: ERC20Abi,
@@ -67,7 +51,14 @@ const TransferBox = () => {
     })
 
     // build agreement
-    const agreement = await sdk.buildAgreementFromFunctionData(tokenAddress, encodedFnData, address, chainId)
+    const agreement = await sdk.buildAgreementFromFunctionData(
+      tokenAddress,
+      encodedFnData,
+      address,
+      chainId,
+      null,
+      handlerAddress!,
+    )
 
     // Sign the agreement using ethers wallet
     const signatures = await sdk.signAgreementWithViem(agreement, walletClient as any)
