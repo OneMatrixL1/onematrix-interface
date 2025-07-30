@@ -34,6 +34,7 @@ enum Step {
 const WebRTC = () => {
   const [role, setRole] = useState<null | Role>(null)
   const [step, setStep] = useState<null | Step>(null)
+  const roleRef = useRef(role)
 
   const [qrValue, setQrValue] = useState("")
   const [isConnected, setConnected] = useState(false)
@@ -95,6 +96,7 @@ const WebRTC = () => {
   const createOffer = async () => {
     setRole(Role.OFFERER)
     setStep(Step.QRCODE)
+    roleRef.current = Role.OFFERER
 
     setupConnection()
     dialog.setOpen(true)
@@ -112,6 +114,7 @@ const WebRTC = () => {
   const startAnswer = () => {
     setRole(Role.ANSWERER)
     setStep(Step.SCANNER)
+    roleRef.current = Role.ANSWERER
 
     setTimeout(() => scanQR(), 100)
     dialog.setOpen(true)
@@ -119,13 +122,13 @@ const WebRTC = () => {
 
   const handleConnect = async (data: string) => {
     try {
-      if (role === Role.OFFERER) {
+      if (roleRef.current === Role.OFFERER) {
         if (!pcRef.current) return
         const answer = JSON.parse(data)
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
         onConnected(true)
       }
-      if (role === Role.ANSWERER) {
+      if (roleRef.current === Role.ANSWERER) {
         setupConnection()
         if (!pcRef.current) return
         const offer = JSON.parse(data)
