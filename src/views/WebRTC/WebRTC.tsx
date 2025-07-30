@@ -1,21 +1,25 @@
 import {
   Box,
   Button,
+  Center,
   CloseButton,
   Container,
   Dialog,
   Flex,
   Group,
+  HStack,
   Input,
   Portal,
   Stack,
+  Tag,
   Text,
   useDialog,
 } from "@chakra-ui/react"
 import { toaster } from "components/ui/toaster"
 import QrScanner from "qr-scanner"
 import { QRCodeSVG as QRCode } from "qrcode.react"
-import React, { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { RiUserReceived2Line, RiUserShared2Line } from "react-icons/ri"
 
 enum Role {
   ANSWERER = "ANSWERER",
@@ -32,10 +36,10 @@ const WebRTC = () => {
   const [step, setStep] = useState<null | Step>(null)
 
   const [qrValue, setQrValue] = useState("")
+  const [isConnected, setConnected] = useState(false)
 
-  const [status, setStatus] = useState("Not connected")
   const [message, setMessage] = useState("")
-  const [chat, setChat] = useState<string[]>([])
+  const [chatLogs, setChatLogs] = useState<string[]>([])
 
   const dialog = useDialog()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -55,17 +59,14 @@ const WebRTC = () => {
     }
 
     pc.oniceconnectionstatechange = () => {
-      handleDisconnect(pc.iceConnectionState)
+      if (pc.iceConnectionState === "disconnected") {
+        onConnected(false)
+      }
     }
 
     pc.onconnectionstatechange = () => {
-      handleDisconnect(pc.connectionState)
-    }
-
-    const handleDisconnect = (state: RTCIceConnectionState | RTCPeerConnectionState) => {
-      if (state === "disconnected" || state === "failed" || state === "closed") {
-        setStatus("Not connected")
-        toaster.create({ title: "Disconnected" })
+      if (pc.connectionState === "disconnected") {
+        onConnected(false)
       }
     }
 
@@ -73,14 +74,22 @@ const WebRTC = () => {
       const dc = event.channel
       dcRef.current = dc
       dc.onmessage = (event) => {
-        setChat((c) => [...c, `Peer: ${event.data}`])
+        setChatLogs((c) => [...c, `Peer: ${event.data}`])
       }
-      setStatus("Connected (Answer side)")
-      toaster.create({ title: "Connected" })
-      dialog.setOpen(false)
+      onConnected(true)
     }
 
     pcRef.current = pc
+  }
+
+  const onConnected = (isConnected: boolean) => {
+    setConnected(isConnected)
+    if (isConnected) {
+      toaster.create({ id: "1", title: "Connected", type: "success" })
+      dialog.setOpen(false)
+    } else {
+      toaster.create({ id: "2", title: "Disconnected", type: "error" })
+    }
   }
 
   const createOffer = async () => {
@@ -93,10 +102,57 @@ const WebRTC = () => {
     if (pcRef.current) {
       const dc = pcRef.current.createDataChannel("chat")
       dcRef.current = dc
-      dc.onmessage = (e) => setChat((c) => [...c, `Peer: ${e.data}`])
+      dc.onmessage = (e) => setChatLogs((c) => [...c, `Peer: ${e.data}`])
 
       const offer = await pcRef.current.createOffer()
       await pcRef.current.setLocalDescription(offer)
+    }
+  }
+
+  const startAnswer = () => {
+    setRole(Role.ANSWERER)
+    setStep(Step.SCANNER)
+
+    setTimeout(() => scanQR(), 100)
+    dialog.setOpen(true)
+  }
+
+  const handleConnect = async (data: string) => {
+    try {
+      if (role === Role.OFFERER) {
+        if (!pcRef.current) return
+        const answer = JSON.parse(data)
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
+        onConnected(true)
+      }
+      if (role === Role.ANSWERER) {
+        setupConnection()
+        if (!pcRef.current) return
+        const offer = JSON.parse(data)
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
+        const answer = await pcRef.current.createAnswer()
+        await pcRef.current.setLocalDescription(answer)
+        setQrValue(JSON.stringify(pcRef.current.localDescription))
+        setStep(Step.QRCODE)
+      }
+    } catch {
+      toaster.create({ title: "Error", type: "error" })
+    }
+  }
+
+  const handleReset = () => {
+    setRole(null)
+    setStep(null)
+
+    setQrValue("")
+    dialog.setOpen(false)
+  }
+
+  const sendMessage = () => {
+    if (dcRef.current?.readyState === "open" && message.trim()) {
+      dcRef.current.send(message)
+      setChatLogs((c) => [...c, `You: ${message}`])
+      setMessage("")
     }
   }
 
@@ -106,39 +162,13 @@ const WebRTC = () => {
       async (result) => {
         scanner.stop()
         qrScannerRef.current = null
-
-        if (role === Role.OFFERER) {
-          if (!pcRef.current) return
-          const answer = JSON.parse(result.data)
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
-          setStatus("Connected (Offer side)")
-          toaster.create({ title: "Connected" })
-          dialog.setOpen(false)
-        }
-        if (role === Role.ANSWERER) {
-          setupConnection()
-          if (!pcRef.current) return
-          const offer = JSON.parse(result.data)
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
-          const answer = await pcRef.current.createAnswer()
-          await pcRef.current.setLocalDescription(answer)
-          setQrValue(JSON.stringify(pcRef.current.localDescription))
-          setStep(Step.QRCODE)
-        }
+        await handleConnect(result.data)
       },
       { returnDetailedScanResult: true },
     )
 
     qrScannerRef.current = scanner
     scanner.start()
-  }
-
-  const sendMessage = () => {
-    if (dcRef.current?.readyState === "open") {
-      dcRef.current.send(message)
-      setChat((c) => [...c, `You: ${message}`])
-      setMessage("")
-    }
   }
 
   useEffect(() => {
@@ -149,48 +179,65 @@ const WebRTC = () => {
 
   return (
     <Container>
-      <Text fontWeight="bold">WebRTC Peer-to-Peer</Text>
-      <Text>Status: {status}</Text>
+      <Stack alignItems="flex-start" gap={6}>
+        <HStack>
+          <Text fontWeight="bold">WebRTC Peer-to-Peer</Text>
+          <Tag.Root colorPalette={isConnected ? "green" : "orange"} size="lg" variant="surface">
+            <Tag.Label>{isConnected ? "Connected" : "Disconnected"}</Tag.Label>
+          </Tag.Root>
+        </HStack>
 
-      <Flex gap={2}>
-        <Button colorPalette="purple" onClick={createOffer}>
-          Start Offer (Peer A)
-        </Button>
-        <Button
-          colorPalette="purple"
-          onClick={() => {
-            setRole(Role.ANSWERER)
-            setStep(Step.SCANNER)
-            dialog.setOpen(true)
-            setTimeout(() => scanQR(), 100)
-          }}
-        >
-          Scan Offer (Peer B)
-        </Button>
-      </Flex>
+        {!isConnected && (
+          <Flex flexWrap="wrap" gap={6}>
+            <Stack>
+              <Center>
+                <RiUserShared2Line size={40} />
+              </Center>
+              <Button borderRadius={8} colorPalette="purple" onClick={createOffer} size={{ base: "xs", md: "md" }}>
+                Start Offer (Peer A)
+              </Button>
+            </Stack>
 
-      {status.startsWith("Connected") && (
-        <>
-          <Group attached w="full">
-            <Input
-              flex={1}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter message..."
-              value={message}
-            />
-            <Button onClick={sendMessage}>Send</Button>
-          </Group>
+            <Stack>
+              <Center className="scale-x-[-1]">
+                <RiUserReceived2Line size={40} />
+              </Center>
+              <Button borderRadius={8} colorPalette="cyan" onClick={startAnswer} size={{ base: "xs", md: "md" }}>
+                Scan Offer (Peer B)
+              </Button>
+            </Stack>
+          </Flex>
+        )}
 
-          <div style={{ marginTop: 20 }}>
-            <h4>Chat Log</h4>
-            <ul>
-              {chat.map((msg, i) => (
-                <li key={i}>{msg}</li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
+        {isConnected && (
+          <Stack gap={6}>
+            <Group attached w="full">
+              <Input
+                flex={1}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") sendMessage()
+                }}
+                placeholder="Enter message..."
+                value={message}
+              />
+              <Button onClick={sendMessage}>Send</Button>
+            </Group>
+
+            <Stack>
+              <Text fontWeight="bold">Chat:</Text>
+              <Stack gap={0}>
+                {chatLogs.map((message, index) => (
+                  <Text fontSize="sm" key={index}>
+                    {message}
+                  </Text>
+                ))}
+                {chatLogs.length === 0 && <Text fontSize="sm">...</Text>}
+              </Stack>
+            </Stack>
+          </Stack>
+        )}
+      </Stack>
 
       <Dialog.Root
         closeOnEscape={false}
@@ -202,13 +249,26 @@ const WebRTC = () => {
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
-            <Dialog.Content>
+            <Dialog.Content mx={3}>
               <Dialog.Header>
-                <Dialog.Title>Connect WebRTC</Dialog.Title>
+                <Dialog.Title display="flex" fontSize="md" gap={4}>
+                  <HStack>
+                    Role:
+                    <Tag.Root colorPalette={role === Role.OFFERER ? "purple" : "cyan"} size="lg" variant="surface">
+                      <Tag.Label>{role}</Tag.Label>
+                    </Tag.Root>
+                  </HStack>
+                  <HStack>
+                    Step:
+                    <Tag.Root colorPalette="orange" size="lg" variant="surface">
+                      <Tag.Label>{step}</Tag.Label>
+                    </Tag.Root>
+                  </HStack>
+                </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
                 {step === Step.QRCODE && (
-                  <Stack>
+                  <Stack gap={4}>
                     <QRCode height="auto" value={qrValue} width="100%" />
 
                     <Group attached w="full">
@@ -217,7 +277,7 @@ const WebRTC = () => {
                         bg="bg.subtle"
                         onClick={() => {
                           navigator.clipboard.writeText(qrValue).then(() => {
-                            toaster.create({ title: "Copied" })
+                            toaster.create({ duration: 1000, title: "Copied" })
                           })
                         }}
                         variant="outline"
@@ -237,15 +297,15 @@ const WebRTC = () => {
                         Scan Answer
                       </Button>
                     ) : (
-                      <Box h={10} />
+                      <Button disabled>Waiting connection...</Button>
                     )}
                   </Stack>
                 )}
 
                 {step === Step.SCANNER && (
-                  <Stack>
+                  <Stack gap={4}>
                     <Box borderWidth={1} overflow="hidden" p={2}>
-                      <video muted playsInline ref={videoRef} style={{ minHeight: 464 - 18 }} />
+                      <video className="aspect-square w-full" muted playsInline ref={videoRef} />
                     </Box>
 
                     <Group attached w="full">
@@ -255,49 +315,25 @@ const WebRTC = () => {
                         placeholder="Enter..."
                         value={qrValue}
                       />
-                      <Button bg="bg.subtle" variant="outline">
+                      <Button
+                        bg="bg.subtle"
+                        onClick={async () => {
+                          setQrValue(await navigator.clipboard.readText())
+                          toaster.create({ duration: 1000, title: "Parsed" })
+                        }}
+                        variant="outline"
+                      >
                         Parse
                       </Button>
                     </Group>
 
-                    <Button
-                      onClick={async () => {
-                        if (role === Role.OFFERER) {
-                          if (!pcRef.current) return
-                          const answer = JSON.parse(qrValue)
-                          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
-                          setStatus("Connected (Offer side)")
-                          toaster.create({ title: "Connected" })
-                          dialog.setOpen(false)
-                        }
-                        if (role === Role.ANSWERER) {
-                          setupConnection()
-                          if (!pcRef.current) return
-                          const offer = JSON.parse(qrValue)
-                          await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
-                          const answer = await pcRef.current.createAnswer()
-                          await pcRef.current.setLocalDescription(answer)
-                          setQrValue(JSON.stringify(pcRef.current.localDescription))
-                          setStep(Step.QRCODE)
-                        }
-                      }}
-                    >
-                      Connect
-                    </Button>
+                    <Button onClick={() => handleConnect(qrValue)}>Connect</Button>
                   </Stack>
                 )}
               </Dialog.Body>
 
-              <Dialog.CloseTrigger>
-                <CloseButton
-                  onClick={() => {
-                    setRole(null)
-                    setStep(null)
-                    setQrValue("")
-                    dialog.setOpen(false)
-                  }}
-                  size="sm"
-                />
+              <Dialog.CloseTrigger as="div">
+                <CloseButton onClick={handleReset} size="sm" />
               </Dialog.CloseTrigger>
             </Dialog.Content>
           </Dialog.Positioner>
