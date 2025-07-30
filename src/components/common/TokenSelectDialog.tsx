@@ -63,12 +63,12 @@ const TokenSelectDialog = ({ buttonProps, feature, fromChain, isDevnet, onChange
     queryFn: ({ pageParam: page }) => {
       const service = isDevnet ? devnetService : kyberService
       return service.fetchTokens({
-        walletClient,
         chainId: isDevnet ? fromChain!.id! : chainId!,
         feature,
         page,
         pageSize: 20,
         query: debouncedSearchText,
+        walletClient,
       })
     },
     queryKey: ["kyberService.fetchTokens", { chainId, feature, fromChain, query: debouncedSearchText }],
@@ -140,7 +140,7 @@ const TokenSelectDialog = ({ buttonProps, feature, fromChain, isDevnet, onChange
       <Portal>
         <Dialog.Backdrop />
         <Dialog.Positioner>
-          <Dialog.Content mt="142px">
+          <Dialog.Content mt={120} mx={3}>
             <Dialog.Header>
               <Dialog.Title>Select a Token</Dialog.Title>
             </Dialog.Header>

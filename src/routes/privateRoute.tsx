@@ -2,6 +2,7 @@ import { Bridge } from "views/Bridge"
 import { Guide } from "views/Component"
 import { MultiSign } from "views/MultiSign"
 import { Transfer } from "views/Transfer"
+import { WebRTC } from "views/WebRTC"
 
 const privateRoute = {
   bridge: {
@@ -28,6 +29,11 @@ const privateRoute = {
     component: Transfer,
     name: "Transfer",
     path: "/transfer",
+  },
+  webRTC: {
+    component: WebRTC,
+    name: "WebRTC",
+    path: "/web-rtc",
   },
 }
 

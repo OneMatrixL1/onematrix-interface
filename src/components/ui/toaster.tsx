@@ -3,6 +3,7 @@
 import { Toaster as ChakraToaster, createToaster, Portal, Spinner, Stack, Toast } from "@chakra-ui/react"
 
 export const toaster = createToaster({
+  duration: 2000,
   pauseOnPageIdle: true,
   placement: "top-end",
 })
