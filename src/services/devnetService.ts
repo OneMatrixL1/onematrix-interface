@@ -43,6 +43,18 @@ const fetchTokens = async (params?: TokensParams): Promise<TokensPagination> => 
       symbol: "ERC20Intent",
     },
     {
+      address: "0x2bC531969dC0df90C857ff42d7Ca0726bE802c17",
+      chainId: 84009,
+      decimals: 18,
+      intent: {
+        handler: "0x35D32d3d14C9E242d04dc0F9a4E0C41009998807",
+        isc: "0x9F24fAA72C4507F64E2d16E3C610D8C353f512cF",
+      },
+      logoURI: "https://s2.coinmarketcap.com/static/img/coins/64x64/825.png",
+      name: "ERC20IntentTest",
+      symbol: "ERC20IntentTest",
+    },
+    {
       address: "0xC8450BFfDa9cC84a3d01dFa5DFB0d02DE67fE695",
       bridges: {
         421_614: "0xB2A8A021943205795C3D425Ca949FbcC9B5E5b7d",

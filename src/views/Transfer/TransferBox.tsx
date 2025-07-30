@@ -56,7 +56,7 @@ const TransferBox = () => {
     const recipientAddress = receiveAddress as Address
     const tokenAddress = token.address
 
-    const chainId: number = walletClient.chain.id
+    const chainId: number = token.chainId
 
     const sdk = new IntentSDK(chainId, iscAddress, handlerAddress)
 
@@ -70,7 +70,7 @@ const TransferBox = () => {
     const agreement = await sdk.buildAgreementFromFunctionData(tokenAddress, encodedFnData, address, chainId)
 
     // Sign the agreement using ethers wallet
-    const signatures = await sdk.signAgreementWithViem(agreement, walletClient, address)
+    const signatures = await sdk.signAgreementWithViem(agreement, walletClient as any)
 
     // Apply to transaction
     const txData = sdk.applyAgreementToTransaction(agreement, signatures, {
@@ -87,7 +87,6 @@ const TransferBox = () => {
     })
 
     const txHash = await relayerClient.sendTransaction({
-      from: relayerAddress,
       ...txData,
     })
 
