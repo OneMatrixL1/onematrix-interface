@@ -16,6 +16,7 @@ import {
   useDialog,
 } from "@chakra-ui/react"
 import { toaster } from "components/ui/toaster"
+import { deflate, inflate } from "pako"
 import QrScanner from "qr-scanner"
 import { QRCodeSVG as QRCode } from "qrcode.react"
 import { useEffect, useRef, useState } from "react"
@@ -29,6 +30,15 @@ enum Role {
 enum Step {
   QRCODE = "QRCODE",
   SCANNER = "SCANNER",
+}
+
+function decode(encoded: string) {
+  const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0))
+  return inflate(bytes, { to: "string" })
+}
+
+function encode(input: string) {
+  return btoa(String.fromCharCode(...deflate(input)))
 }
 
 const WebRTC = () => {
@@ -55,7 +65,7 @@ const WebRTC = () => {
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
-        setQrValue(JSON.stringify(pc.localDescription))
+        setQrValue(encode(JSON.stringify(pc.localDescription)))
       }
     }
 
@@ -124,18 +134,18 @@ const WebRTC = () => {
     try {
       if (roleRef.current === Role.OFFERER) {
         if (!pcRef.current) return
-        const answer = JSON.parse(data)
+        const answer = JSON.parse(decode(data))
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
         onConnected(true)
       }
       if (roleRef.current === Role.ANSWERER) {
         setupConnection()
         if (!pcRef.current) return
-        const offer = JSON.parse(data)
+        const offer = JSON.parse(decode(data))
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
         const answer = await pcRef.current.createAnswer()
         await pcRef.current.setLocalDescription(answer)
-        setQrValue(JSON.stringify(pcRef.current.localDescription))
+        setQrValue(encode(JSON.stringify(pcRef.current.localDescription)))
         setStep(Step.QRCODE)
       }
     } catch {
