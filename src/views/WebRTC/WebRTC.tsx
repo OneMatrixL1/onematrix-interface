@@ -19,25 +19,10 @@ import { toaster } from "components/ui/toaster"
 import QrScanner from "qr-scanner"
 import { QRCodeSVG as QRCode } from "qrcode.react"
 import { useEffect, useRef, useState } from "react"
-import { RiUserReceived2Line } from "react-icons/ri"
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string"
 import QrReader from "react-qr-reader"
 
-enum Role {
-  ANSWERER = "ANSWERER",
-  OFFERER = "OFFERER",
-}
-
-enum Step {
-  QRCODE = "QRCODE",
-  SCANNER = "SCANNER",
-}
-
 const WebRTC = () => {
-  const [role, setRole] = useState<null | Role>(null)
-  const [step, setStep] = useState<null | Step>(null)
-  const roleRef = useRef(role)
-
   const [qrValue, setQrValue] = useState("")
   const [isConnected, setConnected] = useState(false)
 
@@ -48,7 +33,7 @@ const WebRTC = () => {
   const pcRef = useRef<RTCPeerConnection>(null)
   const dcRef = useRef<RTCDataChannel>(null)
 
-  const setupConnection = (user: boolean) => {
+  const setupConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
@@ -109,8 +94,8 @@ const WebRTC = () => {
     }
   }
 
-  const createOffer = async (user: boolean = false) => {
-    setupConnection(user)
+  const createOffer = async () => {
+    setupConnection()
 
     if (pcRef.current) {
       const offer = await pcRef.current.createOffer()
@@ -118,19 +103,15 @@ const WebRTC = () => {
       // QR will be set when ICE gathering is complete in onicecandidate
     }
 
-    console.log("🚀 ~ WebRTC.tsx:115 ~ createOffer ~ pcRef.current:", pcRef.current)
-
-    // dialog.setOpen(true)
+    dialog.setOpen(true)
   }
 
   const handleConnect = async (data: string) => {
+    console.log(pcRef.current)
     if (!pcRef.current) return
 
     try {
       const parsed = JSON.parse(decompressFromEncodedURIComponent(data))
-
-      // If the remote SDP is an offer, we are the answerer
-      console.log("🚀 ~ WebRTC.tsx:131 ~ handleConnect ~ parsed.type:", parsed)
 
       if (parsed.type === "offer") {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(parsed))
@@ -147,10 +128,6 @@ const WebRTC = () => {
   }
 
   const handleReset = () => {
-    setRole(null)
-    setStep(null)
-
-    setQrValue("")
     dialog.setOpen(false)
   }
 
@@ -164,7 +141,7 @@ const WebRTC = () => {
   }
 
   useEffect(() => {
-    setupConnection(false)
+    setupConnection()
   }, [])
 
   return (
@@ -181,16 +158,11 @@ const WebRTC = () => {
           {/* <Center className="scale-x-[-1]">
             <RiUserReceived2Line size={40} />
           </Center> */}
-          <Button borderRadius={8} colorPalette="cyan" onClick={() => createOffer()} size={{ base: "xs", md: "md" }}>
+          <Button borderRadius={8} colorPalette="cyan" onClick={createOffer} size={{ base: "xs", md: "md" }}>
             Vendor
           </Button>
 
-          <Button
-            borderRadius={8}
-            colorPalette="cyan"
-            onClick={() => createOffer(true)}
-            size={{ base: "xs", md: "md" }}
-          >
+          <Button borderRadius={8} colorPalette="cyan" onClick={createOffer} size={{ base: "xs", md: "md" }}>
             User
           </Button>
 
@@ -206,33 +178,49 @@ const WebRTC = () => {
         ))}
       </Stack>
 
-      {!!qrValue && (
-        <HStack justify="center" zIndex={99999}>
-          <Box padding="2" h={"100%"}>
-            <QRCode height="auto" value={qrValue} width="100%" />
-          </Box>
-        </HStack>
+      {!isConnected && (
+        <Dialog.RootProvider value={dialog} placement={"center"} size={"cover"}>
+          <Portal>
+            <Dialog.Backdrop />
+            <Dialog.Positioner>
+              <Dialog.Content>
+                <Dialog.Header></Dialog.Header>
+                <Dialog.Body d="relative">
+                  <Stack justifyContent={"center"} alignItems={"center"}>
+                    {!!qrValue && (
+                      <Box padding="2" h="400px">
+                        <QRCode height="100%" value={qrValue} width="100%" />
+                      </Box>
+                    )}
+                    <Box w={{ base: "100px", lg: "100px" }} h={{ base: "100px", lg: "100px" }}>
+                      <QrReader
+                        showViewFinder={false}
+                        // className="scannerPreview"
+                        facingMode="user"
+                        // constraints={{ facingMode: "environment" }}
+                        // scanDelay={300}
+                        delay={1000}
+                        onScan={async (data: any) => {
+                          console.log("🚀 ~ WebRTC.tsx:211 ~ data:", data)
+                          if (!data) return
+                          // qrScannerRef.current = null
+                          await handleConnect(data)
+                        }}
+                        onError={(error: any) => {
+                          console.log(error)
+                        }}
+                      />
+                    </Box>
+                  </Stack>
+                </Dialog.Body>
+                <Dialog.CloseTrigger asChild>
+                  <CloseButton size="sm" />
+                </Dialog.CloseTrigger>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Portal>
+        </Dialog.RootProvider>
       )}
-
-      <Box position={"fixed"} right={0} bottom={0} zIndex={999}>
-        <QrReader
-          showViewFinder={false}
-          className="scannerPreview"
-          facingMode="environment"
-          // constraints={{ facingMode: "environment" }}
-          // scanDelay={300}
-          delay={1000}
-          onScan={async (data: any) => {
-            console.log("🚀 ~ WebRTC.tsx:211 ~ data:", data)
-            if (!data) return
-            // qrScannerRef.current = null
-            await handleConnect(data)
-          }}
-          onError={(error: any) => {
-            console.log(error)
-          }}
-        />
-      </Box>
     </Container>
   )
 }
