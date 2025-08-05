@@ -19,7 +19,9 @@ import { toaster } from "components/ui/toaster"
 import QrScanner from "qr-scanner"
 import { QRCodeSVG as QRCode } from "qrcode.react"
 import { useEffect, useRef, useState } from "react"
-import { RiUserReceived2Line, RiUserShared2Line } from "react-icons/ri"
+import { RiUserReceived2Line } from "react-icons/ri"
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string"
+import QrReader from "react-qr-reader"
 
 enum Role {
   ANSWERER = "ANSWERER",
@@ -43,19 +45,31 @@ const WebRTC = () => {
   const [chatLogs, setChatLogs] = useState<string[]>([])
 
   const dialog = useDialog()
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const qrScannerRef = useRef<QrScanner>(null)
   const pcRef = useRef<RTCPeerConnection>(null)
   const dcRef = useRef<RTCDataChannel>(null)
 
-  const setupConnection = () => {
+  const setupConnection = (user: boolean) => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
 
+    // Create DataChannel for offerer
+    const dc = pc.createDataChannel("chat")
+    dc.onopen = () => {
+      onConnected(true)
+    }
+    dc.onmessage = (event) => {
+      console.log("🚀 ~ WebRTC.tsx:62 ~ setupConnection ~ event:", event)
+      setChatLogs((c) => [...c, `Peer: ${event.data}`])
+    }
+
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
-        setQrValue(JSON.stringify(pc.localDescription))
+        // ICE gathering complete, share the finalized localDescription
+        if (pc.localDescription) {
+          const compressed = compressToEncodedURIComponent(JSON.stringify(pc.localDescription))
+          setQrValue(compressed)
+        }
       }
     }
 
@@ -73,14 +87,16 @@ const WebRTC = () => {
 
     pc.ondatachannel = (event) => {
       const dc = event.channel
-      dcRef.current = dc
+      dc.onopen = () => {
+        onConnected(true)
+      }
       dc.onmessage = (event) => {
         setChatLogs((c) => [...c, `Peer: ${event.data}`])
       }
-      onConnected(true)
     }
 
     pcRef.current = pc
+    dcRef.current = dc
   }
 
   const onConnected = (isConnected: boolean) => {
@@ -93,52 +109,39 @@ const WebRTC = () => {
     }
   }
 
-  const createOffer = async () => {
-    setRole(Role.OFFERER)
-    setStep(Step.QRCODE)
-    roleRef.current = Role.OFFERER
-
-    setupConnection()
-    dialog.setOpen(true)
+  const createOffer = async (user: boolean = false) => {
+    setupConnection(user)
 
     if (pcRef.current) {
-      const dc = pcRef.current.createDataChannel("chat")
-      dcRef.current = dc
-      dc.onmessage = (e) => setChatLogs((c) => [...c, `Peer: ${e.data}`])
-
       const offer = await pcRef.current.createOffer()
       await pcRef.current.setLocalDescription(offer)
+      // QR will be set when ICE gathering is complete in onicecandidate
     }
-  }
 
-  const startAnswer = () => {
-    setRole(Role.ANSWERER)
-    setStep(Step.SCANNER)
-    roleRef.current = Role.ANSWERER
+    console.log("🚀 ~ WebRTC.tsx:115 ~ createOffer ~ pcRef.current:", pcRef.current)
 
-    setTimeout(() => scanQR(), 100)
-    dialog.setOpen(true)
+    // dialog.setOpen(true)
   }
 
   const handleConnect = async (data: string) => {
+    if (!pcRef.current) return
+
     try {
-      if (roleRef.current === Role.OFFERER) {
-        if (!pcRef.current) return
-        const answer = JSON.parse(data)
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer))
-        onConnected(true)
-      }
-      if (roleRef.current === Role.ANSWERER) {
-        setupConnection()
-        if (!pcRef.current) return
-        const offer = JSON.parse(data)
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer))
+      const parsed = JSON.parse(decompressFromEncodedURIComponent(data))
+
+      // If the remote SDP is an offer, we are the answerer
+      console.log("🚀 ~ WebRTC.tsx:131 ~ handleConnect ~ parsed.type:", parsed)
+
+      if (parsed.type === "offer") {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(parsed))
         const answer = await pcRef.current.createAnswer()
         await pcRef.current.setLocalDescription(answer)
-        setQrValue(JSON.stringify(pcRef.current.localDescription))
-        setStep(Step.QRCODE)
+      } else if (parsed.type === "answer") {
+        // If the remote SDP is an answer, we are the offerer
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(parsed))
       }
-    } catch {
+    } catch (error) {
+      console.log("🚀 ~ WebRTC.tsx:188 ~ handleConnect ~ error:", error)
       toaster.create({ title: "Error", type: "error" })
     }
   }
@@ -152,196 +155,84 @@ const WebRTC = () => {
   }
 
   const sendMessage = () => {
-    if (dcRef.current?.readyState === "open" && message.trim()) {
-      dcRef.current.send(message)
-      setChatLogs((c) => [...c, `You: ${message}`])
-      setMessage("")
+    const msg = "hello"
+    if (dcRef.current?.readyState === "open") {
+      dcRef.current.send(JSON.stringify({ type: "chat", message: msg }))
+      setChatLogs((c) => [...c, `You: ${msg}`])
+      setMessage(message)
     }
-  }
-
-  const scanQR = async () => {
-    const scanner = new QrScanner(
-      videoRef.current!,
-      async (result) => {
-        scanner.stop()
-        qrScannerRef.current = null
-        await handleConnect(result.data)
-      },
-      { returnDetailedScanResult: true },
-    )
-
-    qrScannerRef.current = scanner
-    scanner.start()
   }
 
   useEffect(() => {
-    if (!dialog.open || step !== Step.SCANNER) {
-      qrScannerRef.current?.stop()
-    }
-  }, [dialog.open, step])
+    setupConnection(false)
+  }, [])
 
   return (
     <Container>
-      <Stack alignItems="flex-start" gap={6}>
-        <HStack>
+      <Stack alignItems="flex-start" gap={6} paddingBottom={8}>
+        {/* <HStack>
           <Text fontWeight="bold">WebRTC Peer-to-Peer</Text>
           <Tag.Root colorPalette={isConnected ? "green" : "orange"} size="lg" variant="surface">
             <Tag.Label>{isConnected ? "Connected" : "Disconnected"}</Tag.Label>
           </Tag.Root>
+        </HStack> */}
+
+        <HStack>
+          {/* <Center className="scale-x-[-1]">
+            <RiUserReceived2Line size={40} />
+          </Center> */}
+          <Button borderRadius={8} colorPalette="cyan" onClick={() => createOffer()} size={{ base: "xs", md: "md" }}>
+            Vendor
+          </Button>
+
+          <Button
+            borderRadius={8}
+            colorPalette="cyan"
+            onClick={() => createOffer(true)}
+            size={{ base: "xs", md: "md" }}
+          >
+            User
+          </Button>
+
+          <Button borderRadius={8} colorPalette="cyan" onClick={() => sendMessage()} size={{ base: "xs", md: "md" }}>
+            send message
+          </Button>
         </HStack>
-
-        {!isConnected && (
-          <Flex flexWrap="wrap" gap={6}>
-            <Stack>
-              <Center>
-                <RiUserShared2Line size={40} />
-              </Center>
-              <Button borderRadius={8} colorPalette="purple" onClick={createOffer} size={{ base: "xs", md: "md" }}>
-                Start Offer (Peer A)
-              </Button>
-            </Stack>
-
-            <Stack>
-              <Center className="scale-x-[-1]">
-                <RiUserReceived2Line size={40} />
-              </Center>
-              <Button borderRadius={8} colorPalette="cyan" onClick={startAnswer} size={{ base: "xs", md: "md" }}>
-                Scan Offer (Peer B)
-              </Button>
-            </Stack>
-          </Flex>
-        )}
-
-        {isConnected && (
-          <Stack gap={6}>
-            <Group attached w="full">
-              <Input
-                flex={1}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") sendMessage()
-                }}
-                placeholder="Enter message..."
-                value={message}
-              />
-              <Button onClick={sendMessage}>Send</Button>
-            </Group>
-
-            <Stack>
-              <Text fontWeight="bold">Chat:</Text>
-              <Stack gap={0}>
-                {chatLogs.map((message, index) => (
-                  <Text fontSize="sm" key={index}>
-                    {message}
-                  </Text>
-                ))}
-                {chatLogs.length === 0 && <Text fontSize="sm">...</Text>}
-              </Stack>
-            </Stack>
-          </Stack>
-        )}
       </Stack>
 
-      <Dialog.Root
-        closeOnEscape={false}
-        closeOnInteractOutside={false}
-        open={dialog.open}
-        scrollBehavior="inside"
-        size="md"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content mx={3}>
-              <Dialog.Header>
-                <Dialog.Title display="flex" fontSize="md" gap={4}>
-                  <HStack>
-                    Role:
-                    <Tag.Root colorPalette={role === Role.OFFERER ? "purple" : "cyan"} size="lg" variant="surface">
-                      <Tag.Label>{role}</Tag.Label>
-                    </Tag.Root>
-                  </HStack>
-                  <HStack>
-                    Step:
-                    <Tag.Root colorPalette="orange" size="lg" variant="surface">
-                      <Tag.Label>{step}</Tag.Label>
-                    </Tag.Root>
-                  </HStack>
-                </Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                {step === Step.QRCODE && (
-                  <Stack gap={4}>
-                    <QRCode height="auto" value={qrValue} width="100%" />
+      <Stack>
+        {chatLogs.map((i: string, idx: number) => (
+          <Box key={idx}>{i}</Box>
+        ))}
+      </Stack>
 
-                    <Group attached w="full">
-                      <Input disabled flex={1} value={qrValue} />
-                      <Button
-                        bg="bg.subtle"
-                        onClick={() => {
-                          navigator.clipboard.writeText(qrValue).then(() => {
-                            toaster.create({ duration: 1000, title: "Copied" })
-                          })
-                        }}
-                        variant="outline"
-                      >
-                        Copy
-                      </Button>
-                    </Group>
+      {!!qrValue && (
+        <HStack justify="center" zIndex={99999}>
+          <Box padding="2" h={"100%"}>
+            <QRCode height="auto" value={qrValue} width="100%" />
+          </Box>
+        </HStack>
+      )}
 
-                    {role === Role.OFFERER ? (
-                      <Button
-                        onClick={() => {
-                          setQrValue("")
-                          setStep(Step.SCANNER)
-                          setTimeout(() => scanQR(), 100)
-                        }}
-                      >
-                        Scan Answer
-                      </Button>
-                    ) : (
-                      <Button disabled>Waiting connection...</Button>
-                    )}
-                  </Stack>
-                )}
-
-                {step === Step.SCANNER && (
-                  <Stack gap={4}>
-                    <Box borderWidth={1} overflow="hidden" p={2}>
-                      <video className="aspect-square w-full" muted playsInline ref={videoRef} />
-                    </Box>
-
-                    <Group attached w="full">
-                      <Input
-                        flex={1}
-                        onChange={(e) => setQrValue(e.target.value)}
-                        placeholder="Enter..."
-                        value={qrValue}
-                      />
-                      <Button
-                        bg="bg.subtle"
-                        onClick={async () => {
-                          setQrValue(await navigator.clipboard.readText())
-                          toaster.create({ duration: 1000, title: "Parsed" })
-                        }}
-                        variant="outline"
-                      >
-                        Parse
-                      </Button>
-                    </Group>
-
-                    <Button onClick={() => handleConnect(qrValue)}>Connect</Button>
-                  </Stack>
-                )}
-              </Dialog.Body>
-
-              <Dialog.CloseTrigger as="div">
-                <CloseButton onClick={handleReset} size="sm" />
-              </Dialog.CloseTrigger>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <Box position={"fixed"} right={0} bottom={0} zIndex={999}>
+        <QrReader
+          showViewFinder={false}
+          className="scannerPreview"
+          facingMode="environment"
+          // constraints={{ facingMode: "environment" }}
+          // scanDelay={300}
+          delay={1000}
+          onScan={async (data: any) => {
+            console.log("🚀 ~ WebRTC.tsx:211 ~ data:", data)
+            if (!data) return
+            // qrScannerRef.current = null
+            await handleConnect(data)
+          }}
+          onError={(error: any) => {
+            console.log(error)
+          }}
+        />
+      </Box>
     </Container>
   )
 }

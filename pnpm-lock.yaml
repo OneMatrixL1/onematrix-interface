@@ -44,9 +44,15 @@ importers:
       luxon:
         specifier: ^3.6.1
         version: 3.6.1
+      lz-string:
+        specifier: ^1.5.0
+        version: 1.5.0
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      pako:
+        specifier: ^2.1.0
+        version: 2.1.0
       qr-scanner:
         specifier: ^1.4.2
         version: 1.4.2
@@ -68,6 +74,9 @@ importers:
       react-number-format:
         specifier: ^5.4.4
         version: 5.4.4(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-qr-reader:
+        specifier: 2.2.1
+        version: 2.2.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-router:
         specifier: ^7.5.2
         version: 7.6.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -93,6 +102,9 @@ importers:
       '@types/luxon':
         specifier: ^3.6.2
         version: 3.6.2
+      '@types/pako':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@types/react':
         specifier: ^19.0.10
         version: 19.0.11
@@ -102,6 +114,9 @@ importers:
       '@types/react-infinite-scroller':
         specifier: ^1.2.5
         version: 1.2.5
+      '@types/react-qr-reader':
+        specifier: ^2.1.7
+        version: 2.1.7
       '@vitejs/plugin-react-swc':
         specifier: ^3.8.0
         version: 3.8.0(@swc/helpers@0.5.15)(vite@6.2.2(@types/node@22.13.11)(jiti@2.4.2)(lightningcss@1.29.2)(sass@1.86.0))
@@ -1271,6 +1286,9 @@ packages:
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
 
+  '@types/pako@2.0.3':
+    resolution: {integrity: sha512-bq0hMV9opAcrmE0Byyo0fY3Ew4tgOevJmQ9grUhpXQhYfyLJ1Kqg3P33JT5fdbT2AjeAjR51zqqVjAL/HMkx7Q==}
+
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
 
@@ -1281,6 +1299,9 @@ packages:
 
   '@types/react-infinite-scroller@1.2.5':
     resolution: {integrity: sha512-fJU1jhMgoL6NJFrqTM0Ob7tnd2sQWGxe2ESwiU6FZWbJK/VO/Er5+AOhc+e2zbT0dk5pLygqctsulOLJ8xnSzw==}
+
+  '@types/react-qr-reader@2.1.7':
+    resolution: {integrity: sha512-6K6DQeqP7c2oohcfvBpExlOawVsB2/C+7ZZL/fkCkNzYYAKDJnNHnuP3F5ChMl0mpoYEdqkqkllxqfM0VslEiw==}
 
   '@types/react@19.0.11':
     resolution: {integrity: sha512-vrdxRZfo9ALXth6yPfV16PYTLZwsUWhVjjC+DkfE5t1suNSbBrWC9YqSuuxJZ8Ps6z1o2ycRpIqzZJIgklq4Tw==}
@@ -2440,6 +2461,9 @@ packages:
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
+  jsqr@1.4.0:
+    resolution: {integrity: sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==}
+
   keccak@3.0.4:
     resolution: {integrity: sha512-3vKuW0jV8J3XNTzvfyicFR5qvxrSAGl7KIhvgOu5cmWwM7tZRj3fMbj/pfIf4be7aznbc+prBWGjywox/g2Y6Q==}
     engines: {node: '>=10.0.0'}
@@ -2554,6 +2578,10 @@ packages:
   luxon@3.6.1:
     resolution: {integrity: sha512-tJLxrKJhO2ukZ5z0gyjY1zPh3Rh88Ej9P7jNrZiHMUXHae1yvI2imgOZtL1TO8TW6biMMKfTtAOoEJANgtWBMQ==}
     engines: {node: '>=12'}
+
+  lz-string@1.5.0:
+    resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
+    hasBin: true
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -2724,6 +2752,9 @@ packages:
   p-try@2.2.0:
     resolution: {integrity: sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==}
     engines: {node: '>=6'}
+
+  pako@2.1.0:
+    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -2946,6 +2977,12 @@ packages:
       react: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  react-qr-reader@2.2.1:
+    resolution: {integrity: sha512-EL5JEj53u2yAOgtpAKAVBzD/SiKWn0Bl7AZy6ZrSf1lub7xHwtaXe6XSx36Wbhl1VMGmvmrwYMRwO1aSCT2fwA==}
+    peerDependencies:
+      react: ~16
+      react-dom: ~16
+
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
     engines: {node: '>=10'}
@@ -3033,6 +3070,10 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rtcpeerconnection-shim@1.2.15:
+    resolution: {integrity: sha512-C6DxhXt7bssQ1nHb154lqeL0SXz5Dx4RczXZu2Aa/L1NJFnEVDxFwCBo3fqtuljhHIGceg5JKBV4XJ0gW5JKyw==}
+    engines: {node: '>=6.0.0', npm: '>=3.10.0'}
+
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
@@ -3060,6 +3101,9 @@ packages:
 
   scrypt-js@3.0.1:
     resolution: {integrity: sha512-cdwTTnqPu0Hyvf5in5asVdZocVDTNRmR7XEcJuIzMjJeSHybHl7vpB66AzwTaIg6CLSbtjcxc8fqcySfnTkccA==}
+
+  sdp@2.12.0:
+    resolution: {integrity: sha512-jhXqQAQVM+8Xj5EjJGVweuEzgtGWb3tmEEpl3CLP3cStInSbVHSg0QWOGQzNq8pSID4JkpeV2mPqlMDLrm0/Vw==}
 
   semver@7.7.1:
     resolution: {integrity: sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA==}
@@ -3449,6 +3493,10 @@ packages:
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+
+  webrtc-adapter@7.7.1:
+    resolution: {integrity: sha512-TbrbBmiQBL9n0/5bvDdORc6ZfRY/Z7JnEj+EYOD1ghseZdpJ+nF2yx14k3LgQKc7JZnG7HAcL+zHnY25So9d7A==}
+    engines: {node: '>=6.0.0', npm: '>=3.10.0'}
 
   whatwg-url@5.0.0:
     resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
@@ -4137,13 +4185,13 @@ snapshots:
   '@ethersproject/hdnode@5.5.0':
     dependencies:
       '@ethersproject/abstract-signer': 5.8.0
-      '@ethersproject/basex': 5.5.0
+      '@ethersproject/basex': 5.8.0
       '@ethersproject/bignumber': 5.8.0
       '@ethersproject/bytes': 5.8.0
       '@ethersproject/logger': 5.8.0
       '@ethersproject/pbkdf2': 5.5.0
       '@ethersproject/properties': 5.8.0
-      '@ethersproject/sha2': 5.5.0
+      '@ethersproject/sha2': 5.8.0
       '@ethersproject/signing-key': 5.8.0
       '@ethersproject/strings': 5.8.0
       '@ethersproject/transactions': 5.8.0
@@ -4159,7 +4207,7 @@ snapshots:
       '@ethersproject/logger': 5.8.0
       '@ethersproject/pbkdf2': 5.5.0
       '@ethersproject/properties': 5.8.0
-      '@ethersproject/random': 5.5.1
+      '@ethersproject/random': 5.8.0
       '@ethersproject/strings': 5.8.0
       '@ethersproject/transactions': 5.8.0
       aes-js: 3.0.0
@@ -4190,7 +4238,7 @@ snapshots:
   '@ethersproject/pbkdf2@5.5.0':
     dependencies:
       '@ethersproject/bytes': 5.8.0
-      '@ethersproject/sha2': 5.5.0
+      '@ethersproject/sha2': 5.8.0
 
   '@ethersproject/properties@5.5.0':
     dependencies:
@@ -4205,7 +4253,7 @@ snapshots:
       '@ethersproject/abstract-provider': 5.8.0
       '@ethersproject/abstract-signer': 5.8.0
       '@ethersproject/address': 5.8.0
-      '@ethersproject/basex': 5.5.0
+      '@ethersproject/basex': 5.8.0
       '@ethersproject/bignumber': 5.8.0
       '@ethersproject/bytes': 5.8.0
       '@ethersproject/constants': 5.8.0
@@ -4213,9 +4261,9 @@ snapshots:
       '@ethersproject/logger': 5.8.0
       '@ethersproject/networks': 5.8.0
       '@ethersproject/properties': 5.8.0
-      '@ethersproject/random': 5.5.1
+      '@ethersproject/random': 5.8.0
       '@ethersproject/rlp': 5.8.0
-      '@ethersproject/sha2': 5.5.0
+      '@ethersproject/sha2': 5.8.0
       '@ethersproject/strings': 5.8.0
       '@ethersproject/transactions': 5.8.0
       '@ethersproject/web': 5.8.0
@@ -4306,7 +4354,7 @@ snapshots:
       '@ethersproject/bytes': 5.8.0
       '@ethersproject/keccak256': 5.8.0
       '@ethersproject/logger': 5.8.0
-      '@ethersproject/sha2': 5.5.0
+      '@ethersproject/sha2': 5.8.0
       '@ethersproject/strings': 5.8.0
 
   '@ethersproject/strings@5.5.0':
@@ -4364,7 +4412,7 @@ snapshots:
       '@ethersproject/keccak256': 5.8.0
       '@ethersproject/logger': 5.8.0
       '@ethersproject/properties': 5.8.0
-      '@ethersproject/random': 5.5.1
+      '@ethersproject/random': 5.8.0
       '@ethersproject/signing-key': 5.8.0
       '@ethersproject/transactions': 5.8.0
       '@ethersproject/wordlists': 5.5.0
@@ -5062,6 +5110,8 @@ snapshots:
 
   '@types/offscreencanvas@2019.7.3': {}
 
+  '@types/pako@2.0.3': {}
+
   '@types/parse-json@4.0.2': {}
 
   '@types/react-dom@19.0.4(@types/react@19.0.11)':
@@ -5069,6 +5119,10 @@ snapshots:
       '@types/react': 19.0.11
 
   '@types/react-infinite-scroller@1.2.5':
+    dependencies:
+      '@types/react': 19.0.11
+
+  '@types/react-qr-reader@2.1.7':
     dependencies:
       '@types/react': 19.0.11
 
@@ -6899,6 +6953,8 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
+  jsqr@1.4.0: {}
+
   keccak@3.0.4:
     dependencies:
       node-addon-api: 2.0.2
@@ -6998,6 +7054,8 @@ snapshots:
   lru-cache@10.4.3: {}
 
   luxon@3.6.1: {}
+
+  lz-string@1.5.0: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -7169,6 +7227,8 @@ snapshots:
 
   p-try@2.2.0: {}
 
+  pako@2.1.0: {}
+
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
@@ -7327,6 +7387,14 @@ snapshots:
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
 
+  react-qr-reader@2.2.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      jsqr: 1.4.0
+      prop-types: 15.8.1
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      webrtc-adapter: 7.7.1
+
   react-remove-scroll-bar@2.3.8(@types/react@19.0.11)(react@19.0.0):
     dependencies:
       react: 19.0.0
@@ -7425,6 +7493,10 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.36.0
       fsevents: 2.3.3
 
+  rtcpeerconnection-shim@1.2.15:
+    dependencies:
+      sdp: 2.12.0
+
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
@@ -7453,6 +7525,8 @@ snapshots:
   scheduler@0.25.0: {}
 
   scrypt-js@3.0.1: {}
+
+  sdp@2.12.0: {}
 
   semver@7.7.1: {}
 
@@ -7791,6 +7865,11 @@ snapshots:
   webextension-polyfill@0.10.0: {}
 
   webidl-conversions@3.0.1: {}
+
+  webrtc-adapter@7.7.1:
+    dependencies:
+      rtcpeerconnection-shim: 1.2.15
+      sdp: 2.12.0
 
   whatwg-url@5.0.0:
     dependencies:
