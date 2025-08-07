@@ -38,6 +38,9 @@ const WebRTC = () => {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
 
+    const compressed = compressToEncodedURIComponent(JSON.stringify(pc.localDescription))
+    setQrValue(compressed)
+
     // Create DataChannel for offerer
     const dc = pc.createDataChannel("chat")
     dc.onopen = () => {
