@@ -61,13 +61,14 @@ const WebRTC = () => {
       onConnected(true)
     }
     dc.onmessage = (event) => {
-      setChatLogs((c) => [...c, `Peer: ${event.data}`])
+      setChatLogs((c) => [...c, `Peer: ${event.data?.message ?? event.data}`])
     }
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
         // ICE gathering complete, share the finalized localDescription
         if (pc.localDescription) {
+          console.log(pc.localDescription)
           const compressed = compressToEncodedURIComponent(JSON.stringify(pc.localDescription))
           setQrValue(compressed)
         }
