@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Center,
+  Checkbox,
   CloseButton,
   Container,
   Dialog,
@@ -22,7 +23,13 @@ import { useEffect, useRef, useState } from "react"
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string"
 import QrReader from "react-qr-reader"
 
+enum CameraMode {
+  USER = "user",
+  ENVIRONMENT = "environment",
+}
+
 const WebRTC = () => {
+  const [cameraMode, setCameraMode] = useState<CameraMode>(CameraMode.USER)
   const [qrValue, setQrValue] = useState("")
   const [isConnected, setConnected] = useState(false)
 
@@ -33,7 +40,17 @@ const WebRTC = () => {
   const pcRef = useRef<RTCPeerConnection>(null)
   const dcRef = useRef<RTCDataChannel>(null)
 
-  const setupConnection = () => {
+  const onConnected = (isConnected: boolean) => {
+    setConnected(isConnected)
+    if (isConnected) {
+      toaster.create({ id: "1", title: "Connected", type: "success" })
+      dialog.setOpen(false)
+    } else {
+      toaster.create({ id: "2", title: "Disconnected", type: "error" })
+    }
+  }
+
+  const setupConnection = async () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
@@ -44,7 +61,6 @@ const WebRTC = () => {
       onConnected(true)
     }
     dc.onmessage = (event) => {
-      console.log("🚀 ~ WebRTC.tsx:62 ~ setupConnection ~ event:", event)
       setChatLogs((c) => [...c, `Peer: ${event.data}`])
     }
 
@@ -76,38 +92,21 @@ const WebRTC = () => {
         onConnected(true)
       }
       dc.onmessage = (event) => {
-        setChatLogs((c) => [...c, `Peer: ${event.data}`])
+        setChatLogs((c) => [...c, `Peer: ${event.data?.message ?? event.data}`])
       }
     }
+
+    const offer = await pc.createOffer({
+      offerToReceiveAudio: false,
+      offerToReceiveVideo: false,
+    })
+    await pc.setLocalDescription(offer)
 
     pcRef.current = pc
     dcRef.current = dc
   }
 
-  const onConnected = (isConnected: boolean) => {
-    setConnected(isConnected)
-    if (isConnected) {
-      toaster.create({ id: "1", title: "Connected", type: "success" })
-      dialog.setOpen(false)
-    } else {
-      toaster.create({ id: "2", title: "Disconnected", type: "error" })
-    }
-  }
-
-  const createOffer = async () => {
-    setupConnection()
-
-    if (pcRef.current) {
-      const offer = await pcRef.current.createOffer()
-      await pcRef.current.setLocalDescription(offer)
-      // QR will be set when ICE gathering is complete in onicecandidate
-    }
-
-    dialog.setOpen(true)
-  }
-
   const handleConnect = async (data: string) => {
-    console.log(pcRef.current)
     if (!pcRef.current) return
 
     try {
@@ -121,14 +120,10 @@ const WebRTC = () => {
         // If the remote SDP is an answer, we are the offerer
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(parsed))
       }
+      toaster.create({ title: "Scan successful", type: "success" })
     } catch (error) {
-      console.log("🚀 ~ WebRTC.tsx:188 ~ handleConnect ~ error:", error)
-      toaster.create({ title: "Error", type: "error" })
+      console.error(error)
     }
-  }
-
-  const handleReset = () => {
-    dialog.setOpen(false)
   }
 
   const sendMessage = () => {
@@ -138,6 +133,10 @@ const WebRTC = () => {
       setChatLogs((c) => [...c, `You: ${msg}`])
       setMessage(message)
     }
+  }
+
+  const openDialog = async () => {
+    dialog.setOpen(true)
   }
 
   useEffect(() => {
@@ -158,11 +157,11 @@ const WebRTC = () => {
           {/* <Center className="scale-x-[-1]">
             <RiUserReceived2Line size={40} />
           </Center> */}
-          <Button borderRadius={8} colorPalette="cyan" onClick={createOffer} size={{ base: "xs", md: "md" }}>
+          <Button borderRadius={8} colorPalette="cyan" onClick={openDialog} size={{ base: "xs", md: "md" }}>
             Vendor
           </Button>
 
-          <Button borderRadius={8} colorPalette="cyan" onClick={createOffer} size={{ base: "xs", md: "md" }}>
+          <Button borderRadius={8} colorPalette="cyan" onClick={openDialog} size={{ base: "xs", md: "md" }}>
             User
           </Button>
 
@@ -184,31 +183,32 @@ const WebRTC = () => {
             <Dialog.Backdrop />
             <Dialog.Positioner>
               <Dialog.Content>
-                <Dialog.Header></Dialog.Header>
+                <Dialog.Header />
                 <Dialog.Body d="relative">
                   <Stack justifyContent={"center"} alignItems={"center"}>
                     {!!qrValue && (
-                      <Box padding="2" h="400px">
-                        <QRCode height="100%" value={qrValue} width="100%" />
+                      <Box padding="0" minH="320px" md={{ padding: "2", mt: "6", minH: "440px" }}>
+                        <QRCode height="100%" width="100%" value={qrValue} />
                       </Box>
                     )}
+                    <Checkbox.Root
+                      checked={cameraMode === CameraMode.ENVIRONMENT}
+                      onCheckedChange={(e) => setCameraMode(!!e.checked ? CameraMode.ENVIRONMENT : CameraMode.USER)}
+                    >
+                      <Checkbox.HiddenInput />
+                      <Checkbox.Control />
+                      <Checkbox.Label>Use rear camera</Checkbox.Label>
+                    </Checkbox.Root>
                     <Box w={{ base: "100px", lg: "100px" }} h={{ base: "100px", lg: "100px" }}>
                       <QrReader
                         showViewFinder={false}
-                        // className="scannerPreview"
-                        facingMode="user"
-                        // constraints={{ facingMode: "environment" }}
-                        // scanDelay={300}
+                        facingMode={cameraMode}
                         delay={1000}
                         onScan={async (data: any) => {
-                          console.log("🚀 ~ WebRTC.tsx:211 ~ data:", data)
                           if (!data) return
-                          // qrScannerRef.current = null
                           await handleConnect(data)
                         }}
-                        onError={(error: any) => {
-                          console.log(error)
-                        }}
+                        onError={(error: any) => {}}
                       />
                     </Box>
                   </Stack>
