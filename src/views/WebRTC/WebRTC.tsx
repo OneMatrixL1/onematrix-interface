@@ -54,6 +54,7 @@ const WebRTC = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
+    console.log("🚀 ~ WebRTC.tsx:57 ~ setupConnection ~ pc:", pc)
 
     // Create DataChannel for offerer
     const dc = pc.createDataChannel("chat")
@@ -65,10 +66,10 @@ const WebRTC = () => {
     }
 
     pc.onicecandidate = (event) => {
+      console.log("🚀 ~ WebRTC.tsx:69 ~ setupConnection ~ event.candidate:", event.candidate)
       if (!event.candidate) {
         // ICE gathering complete, share the finalized localDescription
         if (pc.localDescription) {
-          console.log(pc.localDescription)
           const compressed = compressToEncodedURIComponent(JSON.stringify(pc.localDescription))
           setQrValue(compressed)
         }
@@ -188,7 +189,7 @@ const WebRTC = () => {
                 <Dialog.Body d="relative">
                   <Stack justifyContent={"center"} alignItems={"center"}>
                     {!!qrValue && (
-                      <Box padding="0" minH="320px" md={{ padding: "2", mt: "6", minH: "440px" }}>
+                      <Box padding="0" minH="320px" md={{ padding: "2", mt: "6", minH: "360px" }}>
                         <QRCode height="100%" width="100%" value={qrValue} />
                       </Box>
                     )}
