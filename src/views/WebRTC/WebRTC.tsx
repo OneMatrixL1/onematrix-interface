@@ -32,6 +32,7 @@ const WebRTC = () => {
   const [cameraMode, setCameraMode] = useState<CameraMode>(CameraMode.USER)
   const [qrValue, setQrValue] = useState("")
   const [isConnected, setConnected] = useState(false)
+  const [enableQr, setEnableQR] = useState(true)
 
   const [message, setMessage] = useState("")
   const [chatLogs, setChatLogs] = useState<string[]>([])
@@ -53,6 +54,8 @@ const WebRTC = () => {
   const setupConnection = async () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      // bundlePolicy: "max-compat",
+      // iceTransportPolicy: "relay",
     })
     console.log("🚀 ~ WebRTC.tsx:57 ~ setupConnection ~ pc:", pc)
 
@@ -66,7 +69,6 @@ const WebRTC = () => {
     }
 
     pc.onicecandidate = (event) => {
-      console.log("🚀 ~ WebRTC.tsx:69 ~ setupConnection ~ event.candidate:", event.candidate)
       if (!event.candidate) {
         // ICE gathering complete, share the finalized localDescription
         if (pc.localDescription) {
@@ -112,6 +114,7 @@ const WebRTC = () => {
     if (!pcRef.current) return
 
     try {
+      if (!enableQr) return
       const parsed = JSON.parse(decompressFromEncodedURIComponent(data))
 
       if (parsed.type === "offer") {
@@ -123,6 +126,7 @@ const WebRTC = () => {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(parsed))
       }
       toaster.create({ title: "Scan successful", type: "success" })
+      setEnableQR(false)
     } catch (error) {
       console.error(error)
     }
@@ -201,18 +205,20 @@ const WebRTC = () => {
                       <Checkbox.Control />
                       <Checkbox.Label>Use rear camera</Checkbox.Label>
                     </Checkbox.Root>
-                    <Box w={{ base: "100px", lg: "100px" }} h={{ base: "100px", lg: "100px" }}>
-                      <QrReader
-                        showViewFinder={false}
-                        facingMode={cameraMode}
-                        delay={1000}
-                        onScan={async (data: any) => {
-                          if (!data) return
-                          await handleConnect(data)
-                        }}
-                        onError={(error: any) => {}}
-                      />
-                    </Box>
+                    {enableQr && (
+                      <Box w={{ base: "100px", lg: "100px" }} h={{ base: "100px", lg: "100px" }}>
+                        <QrReader
+                          showViewFinder={false}
+                          facingMode={cameraMode}
+                          delay={1000}
+                          onScan={async (data: any) => {
+                            if (!data) return
+                            await handleConnect(data)
+                          }}
+                          onError={(error: any) => {}}
+                        />
+                      </Box>
+                    )}
                   </Stack>
                 </Dialog.Body>
                 <Dialog.CloseTrigger asChild>
