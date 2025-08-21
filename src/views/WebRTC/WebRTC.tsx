@@ -55,6 +55,7 @@ const WebRTC = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       // bundlePolicy: "max-compat",
+      // iceCandidatePoolSize: 1,
       // iceTransportPolicy: "relay",
     })
     console.log("🚀 ~ WebRTC.tsx:57 ~ setupConnection ~ pc:", pc)
@@ -72,7 +73,21 @@ const WebRTC = () => {
       if (!event.candidate) {
         // ICE gathering complete, share the finalized localDescription
         if (pc.localDescription) {
-          const compressed = compressToEncodedURIComponent(JSON.stringify(pc.localDescription))
+          let lines = pc.localDescription.sdp.split("\r\n")
+          lines = lines
+            .filter((line) =>
+              !line.startsWith("o=-")
+              && !line.startsWith("s=-")
+              && !line.startsWith("t=")
+              && !line.startsWith("a=group:BUNDLE")
+              && !line.startsWith("a=extmap-allow-mixed")
+              && !line.startsWith("a=msid-semantic")
+              && !line.startsWith("a=ice-options:trickle")
+              && !line.includes("tcp")
+              && !line.includes("srflx")
+            )
+          console.log(lines)
+          const compressed = compressToEncodedURIComponent(JSON.stringify(lines.join("\r\n")))
           setQrValue(compressed)
         }
       }
